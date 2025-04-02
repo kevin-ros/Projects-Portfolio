@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OwlMap</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <style>
+        /* Basic layout and typography */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header {
+            width: 100%;
+            background: #FFD700;
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .navbar {
+            width: 100%;
+            background: #333;
+            display: flex;
+            justify-content: center;
+        }
+        .navbar a {
+            color: white;
+            padding: 14px 20px;
+            text-decoration: none;
+        }
+        .navbar a:hover {
+            background: #575757;
+        }
+
+        .logo {
+    position: absolute;
+    top: -1px; /* Adjust the distance from the top */
+    left: 10px; /* Adjust the distance from the left */
+}
+
+.logo-image {
+    width: 60px; /* Adjust the size as needed */
+    height: auto; /* Maintain aspect ratio */
+}
+
+.logo-container {
+    position: absolute;
+    top: 10px; /* Adjust the distance from the top */
+    right: 955px; /* Adjust the distance from the right */
+}
+
+.logo-text {
+    font-family: 'Brush Script MT', cursive; /* Cursive font */
+    font-size: 30px; /* Adjust the size of the text */
+    font-weight: bold;
+    color: #333; /* Text color, can be changed */
+    margin: 0;
+    padding: 0;
+}
+
+
+
+        .plus-button {
+    background-color: white;
+    color: black;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    position: fixed;  /* Fixes the button to the screen */
+    top: 10px;        /* Distance from the top of the screen */
+    right: 110px;      /* Distance from the right of the screen */
+    z-index: 1000;    /* Ensures it's above other elements */
+}
+
+.plus-button:hover {
+    background-color: lightgray;
+}
+        .container {
+            display: flex;
+            width: 80%;
+            margin-top: 20px;
+        }
+        .sidebar {
+            width: 20%;
+            background: #f4f4f4;
+            padding: 20px;
+            text-align: center;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+        .map-container {
+            flex: 1;
+            height: 500px;
+            margin: 10px;
+            position: relative;
+        }
+        /* Dropdown and button styles */
+        .dropdown {
+            display: none;
+            background: #ddd;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .sidebar button,
+        .toggle-btn {
+            width: 100%;
+            padding: 10px;
+            background: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .sidebar button:hover,
+        .toggle-btn:hover {
+            background: #575757;
+        }
+        .arrow {
+            transition: transform 0.3s;
+        }
+        .rotate {
+            transform: rotate(180deg);
+        }
+        /* Event dropdown that appears on marker click */
+        #eventDropdown {
+            position: absolute;
+            display: none;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+        /* (Optional) Heatmap day boxes for additional UI */
+        .heatmap-day {
+            display: inline-block;
+            width: 100px;
+            height: 100px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid black;
+            padding: 10px;
+        }
+        body.modal-open {
+    pointer-events: none;
+}
+body.modal-open #createEventModal {
+    pointer-events: auto;
+}
+        .low-density { background-color: #0000FF; color: white; }
+        .medium-density { background-color: #008000; color: white; }
+        .high-density { background-color: #FFFF00; color: black; }
+        .very-high-density { background-color: #FFA500; color: white; }
+        .extremely-high-density { background-color: #FF0000; color: white; }
+
+        /* Sign In Button */
+        #signinButton {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: blue;
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 200;
+        }
+
+        /* Sign In Modal - z-index increased to 10000 */
+        #signinModal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5); /* Dark background overlay */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; /* Centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px;
+            border-radius: 5px;
+            position: relative;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+        }
+
+        /* Create Event Modal - Covers full screen */
+#createEventModal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Dark overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure modal content is centered */
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 350px;
+    position: relative;
+}
+
+/* Disable background interaction */
+body.modal-open {
+    pointer-events: none;
+}
+
+/* Allow interaction only with the modal */
+body.modal-open #createEventModal {
+    pointer-events: auto;
+}
+
+
+        .modal-content input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        .modal-content button {
+            width: 100%;
+            padding: 10px;
+            background: blue;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .close {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="header">Owl Map</div>
+<div class="navbar">
+<a href="https://owllife.kennesaw.edu">Home</a>
+    <a href="https://github.com/kevin-ros/hackathon2025spring">About</a>
+    <a href="https://owllife.kennesaw.edu/organizations" target="_blank">Resources</a>
+    <a href="https://www.kennesaw.edu/need-help-get-help.php">Contact</a>
+</div>
+
+<div class="logo">
+    <img src="./CC.png" alt="Logo" class="logo-image">
+</div>
+
+<div class="logo-container">
+    <span class="logo-text">Campus Cartographer</span>
+</div>
+
+<!-- Sign In Button -->
+<div id="signinButton">Sign In</div>
+
+<div class="navbar">
+    <button class="plus-button" onclick="openCreateEventModal()">+</button>
+</div>
+
+
+<!-- Create Event Modal -->
+<div id="createEventModal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeCreateEventModal()">&times;</span>
+        <h2>Create Event</h2>
+        <input type="text" placeholder="Event Name" id="eventName" required />
+        <input type="text" placeholder="Description" id="eventDescription" required />
+        <input type="text" placeholder="Day (e.g., Monday)" id="eventDay" required />
+        <input type="text" placeholder="Building Name" id="eventBuilding" required />
+        <input type="text" placeholder="Room Number" id="eventRoom" required />
+        <button onclick="submitEvent()">Submit</button>
+    </div>
+</div>
+
+
+
+
+<!-- Sign In Modal -->
+<div id="signinModal">
+    <div class="modal-content">
+        <span class="close" id="closeModal">&times;</span>
+        <h2>Sign In</h2>
+        <form id="signinForm">
+            <input type="text" placeholder="Username" id="username" required />
+            <input type="password" placeholder="Password" id="password" required />
+            <button type="submit">Sign In</button>
+        </form>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Left Sidebar: Weekly Events -->
+    <div class="sidebar">
+        <button onclick="toggleDropdown('weekly-events', 'arrow-weekly')">
+            Weekly Events <span id="arrow-weekly" class="arrow">▼</span>
+        </button>
+        <div id="weekly-events" class="dropdown"></div>
+        <span id="back-button" style="display:none; font-size: 20px; cursor:pointer;" onclick="goBackToWeekly()">← Back to Weekly Events</span>
+    </div>
+    <!-- Map Container -->
+    <div class="map-container">
+        <div id="map" style="height: 100%;"></div>
+        <button class="toggle-btn" onclick="toggleLocation()">Go to Kennesaw</button>
+        <div id="eventDropdown"></div>
+    </div>
+    <!-- Right Sidebar: Daily Events -->
+    <div class="sidebar">
+        <button onclick="toggleDropdown('wellness-spots', 'arrow-daily')">
+            Wellness Spots <span id="arrow-daily" class="arrow">▼</span>
+        </button>
+        <div id="wellness-spots" class="dropdown">
+            <p>S. Walter Kelly Sr. Memorial Field</p>
+            <p>Volleyball/Basketball Court</p>
+            <p>Soccer Fields</p>
+            <p>The Globe</p>
+            <p>The Rock</p>
+        </div>
+    </div>
+</div>
+<script>
+    // Wrap sign in popup functionality to ensure elements are loaded
+    document.addEventListener("DOMContentLoaded", function() {
+        let isLoggedIn = false;
+        let currentUser = "";
+        const signinButton = document.getElementById("signinButton");
+        const signinModal = document.getElementById("signinModal");
+        const signinForm = document.getElementById("signinForm");
+        const usernameInput = document.getElementById("username");
+        const closeModal = document.getElementById("closeModal");
+
+        // Clicking the top right box
+        signinButton.addEventListener("click", function() {
+            if (!isLoggedIn) {
+                signinModal.style.display = "block";
+            } else {
+                // Log out and refresh the page
+                location.reload();
+            }
+        });
+
+        // Handle form submission (accepts any credentials)
+        signinForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            currentUser = usernameInput.value || "User";
+            isLoggedIn = true;
+            signinButton.textContent = currentUser;
+            signinModal.style.display = "none";
+        });
+
+        // Close the modal when the close button is clicked
+        closeModal.addEventListener("click", function() {
+            signinModal.style.display = "none";
+        });
+
+        // Close modal if clicked outside of modal content
+        window.addEventListener("click", function(e) {
+            if (e.target === signinModal) {
+                signinModal.style.display = "none";
+            }
+        });
+    });
+
+    // Map and events code (remains unchanged)
+    const locations = {
+        kennesaw: { lat: 34.038473, lng: -84.582651 },
+        marietta: { lat: 33.937913, lng: -84.519542 }
+    };
+    let currentLocation = "marietta";
+    const map = L.map('map').setView([locations[currentLocation].lat, locations[currentLocation].lng], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const buildingCoordinates = {
+        "Engineering Lab Building": [33.93848, -84.52122],
+        "Atrium Building": [33.93762, -84.52019],
+        "Stingers Dining Hall": [33.93738, -84.52212],
+        "Engineering Technology Center": [33.93842, -84.52237],
+        "Lawrence V. Johnson Library": [33.93927, -84.52010],
+        "Joe Mack Wilson Student Center": [33.94062, -84.52044],
+        "Recreation and Wellness Center": [33.94131, -84.51754],
+        "Gymnasium": [33.93581, -84.51836],
+        "Howell Hall": [33.93817, -84.51886],
+        "Norton Hall": [33.93911, -84.51924],
+        "Mathematics Building": [33.93992, -84.52065],
+        "Marietta Ballroom": [33.94046, -84.52022]
+    };
+
+    const buildingDescriptions = {
+        "Engineering Lab Building": "Home to advanced engineering labs and research centers.",
+        "Atrium Building": "Central academic building with classrooms and lecture halls.",
+        "Stingers Dining Hall": "Popular student dining facility with various food stations.",
+        "Engineering Technology Center": "Hosts engineering workshops and technology departments.",
+        "Lawrence V. Johnson Library": "Main academic library with extensive resources.",
+        "Joe Mack Wilson Student Center": "Student activity hub and event venue.",
+        "Recreation and Wellness Center": "Gym, fitness classes, and wellness resources.",
+        "Gymnasium": "Indoor sports and physical education events.",
+        "Howell Hall": "Residential hall with student services.",
+        "Norton Hall": "Residence hall for honors students.",
+        "Mathematics Building": "Department of Mathematics offices and classrooms.",
+        "Marietta Ballroom": "Event space for formal functions and student events."
+    };
+
+    const wellnessCoordinates = {
+    "S. Walter Kelly Sr. Memorial Field": [33.93480, -84.51884],
+    "Volleyball/Basketball Court": [33.93948, -84.51753],
+    "Soccer Fields": [33.93695, -84.52636], // Fixed missing bracket
+    "The Globe": [33.94013, -84.51997],
+    "The Rock": [33.93925, -84.52108],
+};
+
+
+    const weeklyEvents = {
+        "Monday": [
+            { name: "March Maple Madness Mondays", time: "12 PM", location: "Howell Hall Lobby", link: "https://owllife.kennesaw.edu/event/11118469" },
+            { name: "How to Manage Your Time Workshop", time: "2:00 PM", location: "Engineering Technology Center - Building Q104", link: "https://owllife.kennesaw.edu/event/11201511" },
+            { name: "Graduate Student Appreciation Week Kickoff", time: "4:00 PM", location: "Stingers Dining Hall", link: "https://owllife.kennesaw.edu/event/11073450" },
+            { name: "Muay Thai - OwlFit Group Fitness", time: "4:00 PM", location: "Recreation and Wellness Center, Group Fitness Studio", link: "https://owllife.kennesaw.edu/event/11168850" }
+        ],
+        "Tuesday": [
+            { name: "Cops & Coffee w/ KSU PD & MUS", time: "10:00 AM", location: "Joe Mack Wilson Student Center", link: "https://owllife.kennesaw.edu/event/11121651" },
+            { name: "NCUR Practice Session", time: "1:00 PM", location: "Atrium Building J262", link: "https://owllife.kennesaw.edu/event/11182709" },
+            { name: "SHPE Outside", time: "6:00 PM", location: "Norton Hall", link: "https://owllife.kennesaw.edu/event/11205083" },
+            { name: "Strength Circuits - OWL Fit Group Fitness", time: "1:15 PM", location: "Recreation and Wellness Center, Group Fitness Studio", link: "https://owllife.kennesaw.edu/event/11169067" },
+            { name: "Boxing - OWL Fit Group Fitness", time: "5:30 PM", location: "Recreation and Wellness Center, Group Fitness Studio", link: "https://owllife.kennesaw.edu/event/11168935" }
+        ],
+        "Wednesday": [
+            { name: "Year of Canada: Winds To Soar", time: "12:15 PM", location: "Joe Mack Wilson Student Center", link: "https://owllife.kennesaw.edu/event/10763840" },
+            { name: "Scrappy Bucket's List Prize Pickup", time: "1:00 PM", location: "Joe Mack Wilson Student Center", link: "https://owllife.kennesaw.edu/event/11028511" },
+            { name: "Study Smarter, Not Harder: Test Prep Essentials", time: "2:00 PM", location: "Joe Mack Wilson Student Center A216", link: "https://owllife.kennesaw.edu/event/10773227" },
+            { name: "ALL Recovery Meeting", time: "4:00 PM", location: "Joe Mack Wilson Student Center, Suite 260", link: "https://owllife.kennesaw.edu/event/10769373" },
+            { name: "Muay Thai - OWL Fit Group Fitness", time: "4:00 PM", location: "Recreation and Wellness Center, Group Fitness Studio", link: "https://owllife.kennesaw.edu/event/11168813" },
+            { name: "AIAA April Monthly Meeting", time: "6:00 PM", location: "Engineering Technology Center-Room 106", link: "https://owllife.kennesaw.edu/event/11206186" },
+            { name: "Honors Town Hall", time: "5:30 PM", location: "Marietta Honors Lounge - Norton Hall (1st Floor)", link: "https://owllife.kennesaw.edu/event/11200818" },
+            { name: "KSBE General Body Meeting", time: "7:00 PM", location: "Engineering Technology Center Room Q202", link: "https://owllife.kennesaw.edu/event/10869259" }
+        ],
+        "Thursday": [
+            { name: "Symposium Practice Session", time: "11:00 AM", location: "Engineering Technology Center Q207", link: "https://owllife.kennesaw.edu/event/11183699" },
+            { name: "HIV Testing: Free & Conditional", time: "10:00 AM", location: "Joe Mack Wilson Student Center, Suite 260", link: "https://owllife.kennesaw.edu/event/10761197" },
+            { name: "Start SMART, Stay SMART, Workshop Series-Study Skills", time: "2:00 PM", location: "Atrium Building, J-131", link: "https://owllife.kennesaw.edu/event/10778771" },
+            { name: "Strength Circuits - OWL Fit Group Fitness", time: "3:00 PM", location: "Recreation and Wellness Center, Group Fitness Studio", link: "https://owllife.kennesaw.edu/event/11169061" },
+            { name: "Discover Recovery", time: "3:30 PM", location: "Joe Mack Wilson Student Center, Suite 260", link: "https://owllife.kennesaw.edu/event/10769220" },
+            { name: "Navigating Tech Landscape", time: "5:00 PM", location: "Marietta Ballroom", link: "https://owllife.kennesaw.edu/event/10714089" },
+            { name: "KSU Aerospace Trivia Day", time: "5:30 PM", location: "Marietta Campus", link: "https://owllife.kennesaw.edu/event/11205098" },
+            { name: "Linux Club Meeting", time: "6:30 PM", location: "Marietta Atrium Building Game Lab (J2022)", link: "https://owllife.kennesaw.edu/event/10869352" },
+            { name: "KSBE Game Night", time: "6:00 PM", location: "Joe Mack Wilson Student Center, Room A280", link: "https://owllife.kennesaw.edu/event/10984937" }
+        ],
+        "Friday": [
+            { name: "CCSE Kennesaw Mountain Hike", time: "9:45 AM", location: "Atrium Building 1st floor lobby", link: "https://owllife.kennesaw.edu/event/11141183" },
+            { name: "Board Game Night", time: "5:00 AM", location: "Joe Mack Wilson Student Center 1st floor", link: "https://owllife.kennesaw.edu/event/10871056" },
+            { name: "Peach Belt Conference Championship 2025", time: "10:00 PM", location: "Joe Mack Wilson Student Center Ballroom", link: "https://owllife.kennesaw.edu/event/11178142" },
+            { name: "Boxing - OWL Fit Group Fitness", time: "11:00 AM", location: "Recreation and Wellness Center, Group Fitness Studio", link: "https://owllife.kennesaw.edu/event/11168947" },
+            { name: "Mathematics Colloquism", time: "2:30 PM", location: "Mathematics Building, D237", link: "https://owllife.kennesaw.edu/event/11130514" }
+        ]
+    };
+
+    function toggleLocation() {
+        currentLocation = currentLocation === "marietta" ? "kennesaw" : "marietta";
+        map.setView([locations[currentLocation].lat, locations[currentLocation].lng], 17);
+        document.querySelector(".toggle-btn").textContent =
+            `Go to ${currentLocation === "marietta" ? "Kennesaw" : "Marietta"}`;
+    }
+
+    function toggleDropdown(id, arrowId) {
+        const dropdown = document.getElementById(id);
+        const arrow = document.getElementById(arrowId);
+        const isOpen = dropdown.style.display === "block";
+        dropdown.style.display = isOpen ? "none" : "block";
+        if (arrow) {
+            arrow.classList.toggle("rotate", !isOpen);
+        }
+    }
+
+    function populateWeeklyEvents() {
+        const weeklyEventsDiv = document.getElementById("weekly-events");
+        weeklyEventsDiv.innerHTML = `
+        <h4>Weekly Events</h4>
+        <ul>
+          ${Object.keys(weeklyEvents)
+            .map(day => `
+            <li>
+              <button onclick="showEventsForDay('${day}')">${day}</button>
+            </li>
+          `)
+            .join('')}
+        </ul>
+      `;
+    }
+
+    function showEventsForDay(day) {
+        const weeklyEventsDiv = document.getElementById("weekly-events");
+        const backButtonDiv = document.getElementById("back-button");
+        if (weeklyEvents[day]) {
+            weeklyEventsDiv.innerHTML = `
+          <h4>Events on ${day}</h4>
+          <ul>
+            ${weeklyEvents[day]
+                .map(event => `
+                <li>
+                  <strong>${event.name}</strong> - ${event.time}, ${event.location}
+                  <br><a href="${event.link}" target="_blank">More Info</a>
+                </li>
+              `)
+                .join('')}
+          </ul>
+        `;
+            backButtonDiv.style.display = "block";
+        }
+    }
+
+    function goBackToWeekly() {
+        populateWeeklyEvents();
+        document.getElementById("back-button").style.display = "none";
+    }
+
+    populateWeeklyEvents();
+
+    const heatData = [];
+Object.entries(buildingCoordinates).forEach(([building, coords]) => {
+    let count = 0;
+    let eventList = [];
+
+    for (const day in weeklyEvents) {
+        weeklyEvents[day].forEach(event => {
+            if (event.location.includes(building)) {
+                count++;
+                eventList.push(`<li><a href="${event.link}" target="_blank">${event.name} (${event.time})</a></li>`);
+            }
+        });
+    }
+
+    const description = buildingDescriptions[building] || "No description available.";
+    const popupContent = `
+        <strong>${building}</strong><br>
+        <em>${description}</em><br>
+        <ul>${eventList.slice(0, 3).join('')}</ul>
+    `;
+
+    const marker = L.marker(coords).addTo(map).bindPopup(popupContent);
+    heatData.push([coords[0], coords[1], count / 5]);
+
+    // Ensure clicking on a blue marker opens the event dropdown
+    marker.on('click', function(e) {
+        const dropdown = document.getElementById('eventDropdown');
+        dropdown.innerHTML = `<strong>${building}</strong><ul>${eventList.join('')}</ul>`;
+        dropdown.style.display = 'block';
+        dropdown.style.left = e.originalEvent.pageX + 'px';
+        dropdown.style.top = e.originalEvent.pageY + 'px';
+    });
+});
+
+// **ADD THE HEAT MAP AFTER PROCESSING ALL DATA**
+L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17 }).addTo(map);
+
+// **GREEN MARKERS SECTION**
+const greenMarkerCoords = {
+    "S. Walter Kelly Sr. Memorial Field": [33.93480, -84.51884],
+    "Volleyball/Basketball Court": [33.93948, -84.51753],
+    "Soccer Fields": [33.93695, -84.52636],
+    "The Globe": [33.94013, -84.51997],
+    "The Rock": [33.93925, -84.52108]
+};
+
+// Create a separate layer for green markers
+const greenMarkerLayer = L.layerGroup();
+
+Object.entries(greenMarkerCoords).forEach(([location, coords]) => {
+    const greenMarker = L.circleMarker(coords, {
+        radius: 10,
+        fillColor: 'green',
+        color: 'green',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.7
+    }).bindPopup(`<strong>${location}</strong>`);
+
+    greenMarkerLayer.addLayer(greenMarker); // Add green marker to the layer
+});
+
+greenMarkerLayer.addTo(map); // Add the layer to the map
+
+// **ENSURE DROPDOWN HIDES WHEN CLICKING OUTSIDE**
+window.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('eventDropdown');
+    if (!dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
+
+// Open Create Event Modal
+function openCreateEventModal() {
+    document.getElementById("createEventModal").style.display = "flex";
+    document.body.classList.add("modal-open"); // Disable background clicks
+}
+
+// Close Create Event Modal
+function closeCreateEventModal() {
+    document.getElementById("createEventModal").style.display = "none";
+    document.body.classList.remove("modal-open"); // Enable background clicks
+}
+
+// Handle Create Event Button Click (this will open the modal)
+document.getElementById("createEventButton").addEventListener("click", openCreateEventModal);
+
+// Close the modal (when X is clicked)
+document.querySelector('.close').addEventListener('click', closeCreateEventModal);
+
+// Handle Submit Event
+function submitEvent() {
+    const eventName = document.getElementById("eventName").value.trim();
+    const eventDescription = document.getElementById("eventDescription").value.trim();
+    const eventDay = document.getElementById("eventDay").value.trim();
+    const eventBuilding = document.getElementById("eventBuilding").value.trim();
+    const eventRoom = document.getElementById("eventRoom").value.trim();
+
+    // Check if all fields are filled
+    if (!eventName || !eventDescription || !eventDay || !eventBuilding || !eventRoom) {
+        alert("Please fill in all fields before submitting.");
+        return;
+    }
+
+    // Simulate event submission
+    console.log("Event Created:", {
+        eventName,
+        eventDescription,
+        eventDay,
+        eventBuilding,
+        eventRoom
+    });
+
+    alert("Event successfully created!");
+
+    // Close modal and clear inputs
+    closeCreateEventModal();
+    document.getElementById("eventName").value = "";
+    document.getElementById("eventDescription").value = "";
+    document.getElementById("eventDay").value = "";
+    document.getElementById("eventBuilding").value = "";
+    document.getElementById("eventRoom").value = "";
+}
+
+// Add event listener to form submit button (after form is submitted, the modal will close)
+document.getElementById('createEventForm').addEventListener('submit', function(e) {
+    e.preventDefault();  // Prevent the form from actually submitting
+
+    // Call the submitEvent function to handle the logic
+    submitEvent();
+});
+</script>
+</body>
+</html>
